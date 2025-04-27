@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Video Enhancer",
+  "version": "1.0",
+  "description": "Enhances YouTube video pages with floating buttons.",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "",
+    "default_icon": {
+      "128": "icons/icon128.png"
+    }
+  },
+  "host_permissions": [
+    "http://*.youtube.com/*",
+    "https://*.youtube.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/watch*"],
+      "js": ["content/contentScript.js"]
+    }
+  ]
+}
