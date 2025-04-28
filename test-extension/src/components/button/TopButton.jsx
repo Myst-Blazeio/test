@@ -1,9 +1,15 @@
-import React from "react";
-import { Button, Fade } from "@mui/material";
+import React, { useState, useEffect } from "react";
+import { Button, Fade, CircularProgress, Tooltip } from "@mui/material";
 import styled from "@emotion/styled";
-import SearchIcon from "@mui/icons-material/Search"; // 🔍 icon
+import SearchIcon from "@mui/icons-material/Search";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle"; // ✅ Added
+import {
+  handleFetchUrl,
+  initSnackbarState,
+  SnackbarComponent,
+} from "../../util/TopButton.util";
 
-const StyledTopButton = styled(Button)({
+const StyledTopButton = styled(Button)(({ theme }) => ({
   position: "fixed",
   bottom: "120px",
   right: "50px",
@@ -16,39 +22,66 @@ const StyledTopButton = styled(Button)({
   fontSize: "24px",
   cursor: "pointer",
   zIndex: "9999",
-});
-
-const handleFetchUrl = () => {
-  chrome.runtime.sendMessage({ type: "FETCH_YOUTUBE_URL" }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.error("Message failed:", chrome.runtime.lastError);
-      alert("⚠️ Failed to fetch URL.");
-      return;
-    }
-
-    if (response && response.url) {
-      alert(`🎥 Current YouTube URL:\n${response.url}`);
-    } else {
-      alert("❌ No YouTube video detected on active tab.");
-    }
-  });
-};
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  "&.Mui-disabled": {
+    backgroundColor: "#1976d2",
+    color: "white",
+    opacity: 0.7,
+  },
+}));
 
 const TopButton = ({ show }) => {
+  const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false); // ✅ Added
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "info",
+  });
+
+  // Initialize the Snackbar state from utility
+  useEffect(() => {
+    initSnackbarState(setSnackbar);
+  }, []);
+
+  // Custom handleFetchUrl wrapper to handle success state
+  const customHandleFetchUrl = async () => {
+    setLoading(true);
+    await handleFetchUrl(setLoading);
+
+    // After loading ends (successful download), show success icon briefly
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 1000); // 1 second success icon
+  };
+
   return (
-    <Fade in={show} timeout={300}>
-      <StyledTopButton
-        onClick={() => {
-          handleFetchUrl();
-        }}
-        variant="contained"
-      >
-        <SearchIcon fontSize="large" />
-      </StyledTopButton>
-    </Fade>
+    <>
+      <Fade in={show} timeout={300}>
+        <Tooltip title={loading ? "Summarizing..." : "Summarize Video"}>
+          <StyledTopButton
+            onClick={customHandleFetchUrl}
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? (
+              <CircularProgress size={24} style={{ color: "white" }} />
+            ) : showSuccess ? (
+              <CheckCircleIcon fontSize="large" style={{ color: "white" }} />
+            ) : (
+              <SearchIcon fontSize="large" />
+            )}
+          </StyledTopButton>
+        </Tooltip>
+      </Fade>
+
+      {/* Render the Snackbar component */}
+      <SnackbarComponent snackbar={snackbar} setSnackbar={setSnackbar} />
+    </>
   );
 };
 
 export default TopButton;
-
-//This is a working version of the TopButton component. It includes a button that, when clicked, sends a message to the background script to fetch the current YouTube URL. The button is styled using Material-UI and Emotion, and it uses the Search icon from Material-UI icons. The button appears with a fade-in effect when the `show` prop is true.

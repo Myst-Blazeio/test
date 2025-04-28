@@ -1,0 +1,170 @@
+// src/util/TopButton.util.js
+import axios from "axios";
+import React from "react";
+import {
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Fade,
+  IconButton,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close"; // 👈 important for custom close button
+
+// Snackbar state management
+let snackbarState = {
+  open: false,
+  message: "",
+  severity: "info", // info, success, error, warning
+};
+
+let setSnackbarState; // function to update the snackbar
+
+export const setSnackbar = (message, severity = "info") => {
+  snackbarState = { open: true, message, severity };
+  setSnackbarState(snackbarState);
+};
+
+let isProcessing = false; // global lock variable
+
+export const handleFetchUrl = async (setLoading) => {
+  if (isProcessing) {
+    console.warn("[WARN] Summarization already in progress.");
+    setSnackbar("Summarization already in progress. Please wait.", "warning");
+    return;
+  }
+
+  isProcessing = true; // lock
+  try {
+    setLoading(true);
+
+    chrome.runtime.sendMessage(
+      { type: "FETCH_YOUTUBE_URL" },
+      async (response) => {
+        if (chrome.runtime.lastError) {
+          console.error("[ERROR] Message failed:", chrome.runtime.lastError);
+          setSnackbar("Failed to fetch URL.", "error");
+          setLoading(false);
+          isProcessing = false;
+          return;
+        }
+
+        if (!response || !response.url) {
+          console.warn("[WARN] No YouTube video detected.");
+          setSnackbar("No YouTube video detected on active tab.", "warning");
+          setLoading(false);
+          isProcessing = false;
+          return;
+        }
+
+        console.log("[DEBUG] YouTube URL fetched:", response.url);
+        setSnackbar("Summarizing video...", "info");
+
+        try {
+          const postResponse = await axios.post(
+            "http://localhost:8080/api/summarize",
+            { youtubeUrl: response.url }
+          );
+
+          console.log("[DEBUG] POST response from backend:", postResponse.data);
+
+          if (postResponse.status === 200 || postResponse.status === 201) {
+            setSnackbar("PDF generation started...", "success");
+            await downloadSummary();
+            setSnackbar("PDF downloaded successfully.", "success");
+          } else {
+            console.warn(
+              "[WARN] Unexpected backend status:",
+              postResponse.status
+            );
+            setSnackbar("Unexpected backend response.", "warning");
+          }
+        } catch (error) {
+          console.error("[ERROR] Failed to POST to backend:", error);
+          setSnackbar("Failed to send URL to backend.", "error");
+        } finally {
+          setLoading(false);
+          isProcessing = false; // unlock
+        }
+      }
+    );
+  } catch (error) {
+    console.error("[FATAL ERROR]", error);
+    setSnackbar("Unexpected error.", "error");
+    setLoading(false);
+    isProcessing = false; // unlock
+  }
+};
+
+// Helper to download the PDF
+const downloadSummary = async () => {
+  try {
+    const response = await axios.get(
+      "http://localhost:8080/api/downloadSummary",
+      { responseType: "blob" }
+    );
+
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const link = document.createElement("a");
+    link.href = window.URL.createObjectURL(blob);
+    link.download = "summary.pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log("[DEBUG] Summary PDF downloaded successfully.");
+  } catch (error) {
+    console.error("[ERROR] Failed to download PDF:", error);
+    // No snackbar needed because outer function already handles errors
+  }
+};
+
+// Snackbar component (global)
+export const SnackbarComponent = ({ snackbar, setSnackbar }) => {
+  const handleClose = () => {
+    setSnackbar({ open: false, message: "", severity: "info" });
+  };
+
+  return (
+    <Snackbar
+      open={snackbar.open}
+      autoHideDuration={5000} // auto-hide after 5 sec
+      onClose={handleClose}
+      TransitionComponent={Fade}
+      anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+    >
+      <Alert
+        severity={snackbar.severity}
+        action={
+          <IconButton
+            size="medium"
+            onClick={handleClose}
+            sx={{
+              color: "red",
+              display: "flex",
+              alignItems: "center", // centers the icon vertically
+              justifyContent: "center", // centers the icon horizontally
+            }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        }
+        onClose={handleClose}
+        sx={{
+          border: "1px solid white",
+          borderRadius: "8px",
+          backgroundColor: "black",
+          color: "white",
+          fontSize: "16px",
+          padding: "10px 20px",
+        }}
+      >
+        {snackbar.message}
+      </Alert>
+    </Snackbar>
+  );
+};
+
+// Initialize snackbar
+export const initSnackbarState = (setState) => {
+  setSnackbarState = setState;
+};
