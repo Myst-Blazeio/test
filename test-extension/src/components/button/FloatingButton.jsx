@@ -79,10 +79,7 @@ const FloatingButton = () => {
         show={showLeftButton}
         onClick={() => alert("📝 Left Button Clicked!")}
       />
-      <DiagonalButton
-        show={showTopLeftButton}
-        onClick={() => alert("💡 Top-Left Button Clicked!")}
-      />
+      <DiagonalButton show={showTopLeftButton} />
       <TopButton show={showTopButton} />
     </>
   );

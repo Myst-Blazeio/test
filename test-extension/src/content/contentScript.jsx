@@ -1,7 +1,7 @@
 // content/contentScript.js
 import React from "react";
 import { createRoot } from "react-dom/client";
-import DraggableFloatingButton from "../components/button/DraggableFloatingButton";
+import FloatingButton from "../components/button/FloatingButton";
 
 let root = null; // Persist root across events
 
@@ -13,7 +13,7 @@ function injectApp() {
   document.body.appendChild(rootDiv);
 
   root = createRoot(rootDiv);
-  root.render(<DraggableFloatingButton />);
+  root.render(<FloatingButton />);
 }
 
 function removeApp() {
