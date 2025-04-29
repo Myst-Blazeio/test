@@ -1,31 +1,25 @@
 // src/util/TopButton.util.js
 import axios from "axios";
 import React from "react";
-import {
-  Snackbar,
-  Alert,
-  CircularProgress,
-  Fade,
-  IconButton,
-} from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close"; // 👈 important for custom close button
+import { Snackbar, Alert, Slide, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { baseAPIurl } from "../config";
 
 // Snackbar state management
 let snackbarState = {
   open: false,
   message: "",
-  severity: "info", // info, success, error, warning
+  severity: "info",
 };
 
-let setSnackbarState; // function to update the snackbar
+let setSnackbarState;
 
 export const setSnackbar = (message, severity = "info") => {
   snackbarState = { open: true, message, severity };
   setSnackbarState(snackbarState);
 };
 
-let isProcessing = false; // global lock variable
+let isProcessing = false;
 
 export const handleFetchUrl = async (setLoading) => {
   if (isProcessing) {
@@ -34,7 +28,7 @@ export const handleFetchUrl = async (setLoading) => {
     return;
   }
 
-  isProcessing = true; // lock
+  isProcessing = true;
   try {
     setLoading(true);
 
@@ -61,10 +55,9 @@ export const handleFetchUrl = async (setLoading) => {
         setSnackbar("Summarizing video...", "info");
 
         try {
-          const postResponse = await axios.post(
-            `${baseAPIurl}` + "api/summarize",
-            { youtubeUrl: response.url }
-          );
+          const postResponse = await axios.post(`${baseAPIurl}api/summarize`, {
+            youtubeUrl: response.url,
+          });
 
           console.log("[DEBUG] POST response from backend:", postResponse.data);
 
@@ -84,7 +77,7 @@ export const handleFetchUrl = async (setLoading) => {
           setSnackbar("Failed to send URL to backend.", "error");
         } finally {
           setLoading(false);
-          isProcessing = false; // unlock
+          isProcessing = false;
         }
       }
     );
@@ -92,14 +85,14 @@ export const handleFetchUrl = async (setLoading) => {
     console.error("[FATAL ERROR]", error);
     setSnackbar("Unexpected error.", "error");
     setLoading(false);
-    isProcessing = false; // unlock
+    isProcessing = false;
   }
 };
 
 // Helper to download the PDF
 const downloadSummary = async () => {
   try {
-    const response = await axios.get(`${baseAPIurl}` + "api/downloadSummary", {
+    const response = await axios.get(`${baseAPIurl}api/downloadSummary`, {
       responseType: "blob",
     });
 
@@ -114,11 +107,10 @@ const downloadSummary = async () => {
     console.log("[DEBUG] Summary PDF downloaded successfully.");
   } catch (error) {
     console.error("[ERROR] Failed to download PDF:", error);
-    // No snackbar needed because outer function already handles errors
   }
 };
 
-// Snackbar component (global)
+// Snackbar component with Slide transition
 export const SnackbarComponent = ({ snackbar, setSnackbar }) => {
   const handleClose = () => {
     setSnackbar({ open: false, message: "", severity: "info" });
@@ -127,13 +119,14 @@ export const SnackbarComponent = ({ snackbar, setSnackbar }) => {
   return (
     <Snackbar
       open={snackbar.open}
-      autoHideDuration={5000} // auto-hide after 5 sec
+      autoHideDuration={5000}
       onClose={handleClose}
-      TransitionComponent={Fade}
       anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+      Transition={<Slide direction="right" />} // Slide from the left side
     >
       <Alert
         severity={snackbar.severity}
+        onClose={handleClose}
         action={
           <IconButton
             size="medium"
@@ -141,14 +134,13 @@ export const SnackbarComponent = ({ snackbar, setSnackbar }) => {
             sx={{
               color: "red",
               display: "flex",
-              alignItems: "center", // centers the icon vertically
-              justifyContent: "center", // centers the icon horizontally
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <CloseIcon fontSize="small" />
           </IconButton>
         }
-        onClose={handleClose}
         sx={{
           border: "1px solid white",
           borderRadius: "8px",
@@ -164,7 +156,7 @@ export const SnackbarComponent = ({ snackbar, setSnackbar }) => {
   );
 };
 
-// Initialize snackbar
+// Initialize snackbar setter
 export const initSnackbarState = (setState) => {
   setSnackbarState = setState;
 };
