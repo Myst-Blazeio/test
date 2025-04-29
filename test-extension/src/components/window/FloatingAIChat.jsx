@@ -12,11 +12,12 @@ import SendIcon from "@mui/icons-material/Send";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util"; // Adjust path if needed
 
 // Styled Components
-const FloatingBox = styled(Paper)(({ theme }) => ({
+const FloatingBox = styled(Paper)({
   position: "fixed",
-  bottom: "200px",
+  bottom: "100px",
   left: "50%",
   transform: "translateX(-50%)",
   width: "420px",
@@ -27,7 +28,7 @@ const FloatingBox = styled(Paper)(({ theme }) => ({
   zIndex: 9999,
   display: "flex",
   flexDirection: "column",
-}));
+});
 
 const Header = styled(Box)({
   background: "#0d47a1",
@@ -50,7 +51,7 @@ const MessageContainer = styled(Box)({
   display: "flex",
   flexDirection: "column",
   gap: "16px",
-  maxHeight: "280px", // Enable vertical scroll
+  maxHeight: "280px",
 });
 
 const AnswerBox = styled(Box)({
@@ -89,7 +90,7 @@ const InputSection = styled(Box)({
 const InputField = styled(TextField)({
   background: "white",
   borderRadius: "8px",
-  maxHeight: "100px", // Set scroll cap
+  maxHeight: "100px",
   overflowY: "auto",
   flexGrow: 1,
 });
@@ -109,14 +110,22 @@ const FloatingAIChat = () => {
     }
   }, []);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
-    setQuestion(input);
-    const generatedAnswer = `This is an AI-generated answer to: "${input}"`;
-    setAnswer(generatedAnswer);
-    localStorage.setItem("lastQuestion", input);
-    localStorage.setItem("lastAnswer", generatedAnswer);
+
+    const currentQuestion = input;
     setInput("");
+    setQuestion(currentQuestion);
+    setAnswer("...");
+
+    try {
+      const generatedAnswer = await askTutorAndGetAnswer(currentQuestion);
+      setAnswer(generatedAnswer);
+      localStorage.setItem("lastQuestion", currentQuestion);
+      localStorage.setItem("lastAnswer", generatedAnswer);
+    } catch (error) {
+      setAnswer("There was an error getting the answer.");
+    }
   };
 
   const handleCopy = () => {
