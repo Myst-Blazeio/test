@@ -9,6 +9,7 @@ import {
   IconButton,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close"; // 👈 important for custom close button
+import { baseAPIurl } from "../config";
 
 // Snackbar state management
 let snackbarState = {
@@ -61,7 +62,7 @@ export const handleFetchUrl = async (setLoading) => {
 
         try {
           const postResponse = await axios.post(
-            "http://localhost:8080/api/summarize",
+            `${baseAPIurl}` + "api/summarize",
             { youtubeUrl: response.url }
           );
 
@@ -98,10 +99,9 @@ export const handleFetchUrl = async (setLoading) => {
 // Helper to download the PDF
 const downloadSummary = async () => {
   try {
-    const response = await axios.get(
-      "http://localhost:8080/api/downloadSummary",
-      { responseType: "blob" }
-    );
+    const response = await axios.get(`${baseAPIurl}` + "api/downloadSummary", {
+      responseType: "blob",
+    });
 
     const blob = new Blob([response.data], { type: "application/pdf" });
     const link = document.createElement("a");
