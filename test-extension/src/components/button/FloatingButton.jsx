@@ -4,7 +4,8 @@ import styled from "@emotion/styled";
 import LeftButton from "./LeftButton";
 import TopButton from "./TopButton";
 import DiagonalButton from "./DiagonalButton"; // NEW
-import RobotIcon from "@mui/icons-material/SmartToy";
+// import RobotIcon from "@mui/icons-material/SmartToy";
+import PuzzleIcon from "@mui/icons-material/Extension";
 import CloseIcon from "@mui/icons-material/Close";
 
 const StyledMainButton = styled(Button)({
@@ -70,15 +71,12 @@ const FloatingButton = () => {
         {showButtons ? (
           <CloseIcon fontSize="large" />
         ) : (
-          <RobotIcon fontSize="large" />
+          <PuzzleIcon fontSize="large" />
         )}
       </StyledMainButton>
 
       {/* Side buttons */}
-      <LeftButton
-        show={showLeftButton}
-        onClick={() => alert("📝 Left Button Clicked!")}
-      />
+      <LeftButton show={showLeftButton} />
       <DiagonalButton show={showTopLeftButton} />
       <TopButton show={showTopButton} />
     </>
