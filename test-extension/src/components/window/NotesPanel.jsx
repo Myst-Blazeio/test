@@ -15,7 +15,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import styled from "@emotion/styled";
-import { useNotesPanel } from "../../util/LeftButton.util"; // Import the custom hook
+import { useNotesPanel } from "../../util/LeftButton.util";
 
 const FloatingNotesBox = styled(Paper)({
   position: "fixed",
@@ -88,7 +88,6 @@ const Footer = styled(Box)({
 const NotesPanel = ({ onClose }) => {
   const { notes, setNotes, enhanceNote, triggerSnackbar, SnackbarComponent } =
     useNotesPanel();
-
   const [editable, setEditable] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
 
@@ -103,10 +102,33 @@ const NotesPanel = ({ onClose }) => {
     };
   }, [notes]);
 
-  const handleSave = () => {
-    localStorage.setItem("userNote", notes);
-    setIsSaved(true);
-    setEditable(false);
+  const handleSave = async () => {
+    try {
+      localStorage.setItem("userNote", notes);
+      setIsSaved(true);
+      setEditable(false);
+
+      const response = await fetch("http://localhost:8080/api/notes/current", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (response.ok) {
+        const text = await response.text();
+        triggerSnackbar(`✅ Note saved to backend!`, "success");
+        console.log("[BACKEND RESPONSE]", text);
+      } else {
+        const error = await response.text();
+        triggerSnackbar(`❌ Failed to save note: ${error}`, "error");
+        console.error("[ERROR RESPONSE]", error);
+      }
+    } catch (err) {
+      triggerSnackbar("🚫 Error saving note to backend.", "error");
+      console.error("POST error:", err);
+    }
   };
 
   const handleCancel = () => {
@@ -189,7 +211,6 @@ const NotesPanel = ({ onClose }) => {
         </Button>
       </Footer>
 
-      {/* Snackbar for displaying messages */}
       <Snackbar
         open={triggerSnackbar.open}
         autoHideDuration={5000}
@@ -204,12 +225,7 @@ const NotesPanel = ({ onClose }) => {
             <IconButton
               size="medium"
               onClick={triggerSnackbar.handleClose}
-              sx={{
-                color: "red",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              sx={{ color: "red" }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>

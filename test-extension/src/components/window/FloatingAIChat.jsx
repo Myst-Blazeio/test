@@ -160,7 +160,11 @@ const FloatingAIChat = () => {
       </Header>
 
       <MessageContainer>
-        {question && <QuestionBubble>{question}</QuestionBubble>}
+        {question && (
+          <QuestionBubble sx={{ fontSize: "medium" }}>
+            {question}
+          </QuestionBubble>
+        )}
         {answer && (
           <AnswerBox>
             <Tooltip title="Copy Answer">
@@ -177,7 +181,10 @@ const FloatingAIChat = () => {
                 <ContentCopyIcon fontSize="inherit" />
               </IconButton>
             </Tooltip>
-            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+            <Typography
+              variant="body2"
+              sx={{ whiteSpace: "pre-wrap", fontSize: "medium" }}
+            >
               {answer}
             </Typography>
           </AnswerBox>
