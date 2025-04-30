@@ -1,9 +1,8 @@
-// src/components/LeftButton.jsx
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button, Fade, Tooltip } from "@mui/material";
 import styled from "@emotion/styled";
 import EditNoteIcon from "@mui/icons-material/EditNote";
-import NotesPanel from "../window/NotesPanel"; // ✅ Import your NotesPanel
+import NotesPanel from "../window/NotesPanel";
 
 const StyledLeftButton = styled(Button)({
   position: "fixed",
@@ -22,8 +21,12 @@ const StyledLeftButton = styled(Button)({
 
 const LeftButton = ({ show }) => {
   const [showNotes, setShowNotes] = useState(false);
+  const notesRef = useRef();
 
-  const handleClick = () => {
+  const handleClick = async () => {
+    if (showNotes && notesRef.current) {
+      await notesRef.current.saveBeforeClose();
+    }
     setShowNotes((prev) => !prev);
   };
 
@@ -36,7 +39,9 @@ const LeftButton = ({ show }) => {
           </StyledLeftButton>
         </Tooltip>
       </Fade>
-      {showNotes && <NotesPanel onClose={() => setShowNotes(false)} />}
+      {showNotes && (
+        <NotesPanel ref={notesRef} onClose={() => setShowNotes(false)} />
+      )}
     </>
   );
 };

@@ -1,4 +1,10 @@
-import React, { useState, useEffect } from "react";
+// src/window/NotesPanel.jsx
+import React, {
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import {
   Box,
   Paper,
@@ -9,13 +15,17 @@ import {
   Snackbar,
   Alert,
   Slide,
+  Tooltip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import UndoIcon from "@mui/icons-material/Undo";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import styled from "@emotion/styled";
 import { useNotesPanel } from "../../util/LeftButton.util";
+import { baseAPIurl } from "../../config";
 
 const FloatingNotesBox = styled(Paper)({
   position: "fixed",
@@ -47,53 +57,60 @@ const NoteAreaWrapper = styled(Box)({
   position: "relative",
   flexGrow: 1,
   padding: "12px 16px",
+  display: "flex",
+  flexDirection: "column",
 });
 
 const NoteField = styled(TextField)({
   width: "100%",
   height: "100%",
+  overflowY: "auto",
   "& .MuiInputBase-root": {
     height: "100%",
     fontSize: "14px",
     backgroundColor: "#f0f7ff",
     borderRadius: "16px",
     padding: "12px",
+    alignItems: "flex-start",
   },
   "& textarea": {
     height: "100% !important",
+    overflowY: "auto !important",
   },
 });
 
-const EnhanceButton = styled(IconButton)({
+const EnhanceButton = styled(IconButton)(({ disabled }) => ({
   position: "absolute",
   bottom: 18,
   right: 22,
   backgroundColor: "#ffffffdd",
   borderRadius: "50%",
   boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
+  opacity: disabled ? 0.4 : 1,
+  pointerEvents: disabled ? "none" : "auto",
   "&:hover": {
     backgroundColor: "#e3f2fd",
   },
-});
+}));
 
 const Footer = styled(Box)({
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-end",
   alignItems: "center",
   padding: "14px 18px",
   borderTop: "1px solid #d0d0d0",
   backgroundColor: "#f8fbff",
 });
 
-const NotesPanel = ({ onClose }) => {
-  const { notes, setNotes, enhanceNote, triggerSnackbar, SnackbarComponent } =
-    useNotesPanel();
-  const [editable, setEditable] = useState(false);
+const NotesPanel = forwardRef(({ onClose }, ref) => {
+  const { notes, setNotes, enhanceNote, triggerSnackbar } = useNotesPanel();
   const [isSaved, setIsSaved] = useState(true);
+  const [lastSavedNote, setLastSavedNote] = useState("");
 
   useEffect(() => {
     const storedNote = localStorage.getItem("userNote") || "";
     setNotes(storedNote);
+    setLastSavedNote(storedNote);
   }, [setNotes]);
 
   useEffect(() => {
@@ -103,12 +120,14 @@ const NotesPanel = ({ onClose }) => {
   }, [notes]);
 
   const handleSave = async () => {
+    if (notes.trim() === lastSavedNote.trim()) return;
+
     try {
       localStorage.setItem("userNote", notes);
       setIsSaved(true);
-      setEditable(false);
+      setLastSavedNote(notes);
 
-      const response = await fetch("http://localhost:8080/api/notes/current", {
+      const response = await fetch(`${baseAPIurl}api/notes/current`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -117,32 +136,42 @@ const NotesPanel = ({ onClose }) => {
       });
 
       if (response.ok) {
-        const text = await response.text();
         triggerSnackbar(`✅ Note saved to backend!`, "success");
-        console.log("[BACKEND RESPONSE]", text);
       } else {
         const error = await response.text();
         triggerSnackbar(`❌ Failed to save note: ${error}`, "error");
-        console.error("[ERROR RESPONSE]", error);
       }
     } catch (err) {
       triggerSnackbar("🚫 Error saving note to backend.", "error");
-      console.error("POST error:", err);
     }
   };
 
-  const handleCancel = () => {
-    if (notes !== localStorage.getItem("userNote")) {
-      localStorage.setItem("userNote", notes);
+  const handleReset = async () => {
+    setNotes("");
+    setIsSaved(false);
+
+    try {
+      localStorage.setItem("userNote", "");
+      await fetch(`${baseAPIurl}api/notes/current`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: "" }),
+      });
+      triggerSnackbar("🧹 Note reset successfully!", "success");
+    } catch (err) {
+      triggerSnackbar("🚫 Error resetting note.", "error");
     }
-    onClose();
   };
 
-  const handleEdit = () => setEditable(true);
+  const handleUndo = () => {
+    setNotes(lastSavedNote);
+    setIsSaved(true);
+    triggerSnackbar("↩️ Note restored to last saved version.", "info");
+  };
 
   const handleChange = (e) => {
     setNotes(e.target.value);
-    setIsSaved(e.target.value === localStorage.getItem("userNote"));
+    setIsSaved(e.target.value === lastSavedNote);
   };
 
   const handleEnhanceButtonClick = async () => {
@@ -150,53 +179,101 @@ const NotesPanel = ({ onClose }) => {
       triggerSnackbar("Cannot enhance empty note.", "warning");
       return;
     }
-
     try {
       const enhanced = await enhanceNote(notes);
       if (enhanced) {
         setNotes(enhanced);
-        triggerSnackbar("Note enhanced!", "success");
+        setIsSaved(false);
+        triggerSnackbar("✨ Note enhanced!", "success");
       } else {
         triggerSnackbar("No enhancement received.", "info");
       }
     } catch (error) {
-      console.error("Enhancement failed:", error);
       triggerSnackbar("Failed to enhance note.", "error");
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(notes);
+      triggerSnackbar("📋 Note copied to clipboard!", "success");
+    } catch (err) {
+      triggerSnackbar("🚫 Failed to copy note.", "error");
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    saveBeforeClose: handleSave,
+  }));
+
+  const isNoteEmpty = !notes.trim();
+  const canUndo = notes !== lastSavedNote;
+
   return (
     <FloatingNotesBox elevation={6}>
       <Header>
-        <Typography variant="subtitle1">Quick Notes</Typography>
-        <IconButton size="small" onClick={handleCancel}>
-          <CloseIcon sx={{ color: "white" }} />
-        </IconButton>
+        <Typography variant="subtitle1" sx={{ fontSize: "medium" }}>
+          Quick Notes
+        </Typography>
+        <Box>
+          <Tooltip title="Undo to last saved note">
+            <span>
+              <IconButton size="small" onClick={handleUndo} disabled={!canUndo}>
+                <UndoIcon sx={{ color: "white", opacity: canUndo ? 1 : 0.4 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Clear note">
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleReset}
+                disabled={isNoteEmpty}
+              >
+                <RestartAltIcon
+                  sx={{ color: "white", opacity: isNoteEmpty ? 0.4 : 1 }}
+                />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Copy note to clipboard">
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleCopy}
+                disabled={isNoteEmpty}
+              >
+                <ContentCopyIcon
+                  sx={{ color: "white", opacity: isNoteEmpty ? 0.4 : 1 }}
+                />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <IconButton size="small" onClick={onClose}>
+            <CloseIcon sx={{ color: "white" }} />
+          </IconButton>
+        </Box>
       </Header>
+
       <NoteAreaWrapper>
         <NoteField
           fullWidth
           multiline
           variant="outlined"
-          disabled={!editable}
           value={notes}
           onChange={handleChange}
+          onFocus={() => setIsSaved(false)}
           placeholder="Write your notes here..."
         />
-        <EnhanceButton onClick={handleEnhanceButtonClick}>
+        <EnhanceButton
+          onClick={handleEnhanceButtonClick}
+          disabled={isNoteEmpty}
+        >
           <AutoAwesomeOutlinedIcon color="primary" />
         </EnhanceButton>
       </NoteAreaWrapper>
-      <Footer>
-        <Button
-          variant="outlined"
-          startIcon={<EditIcon />}
-          onClick={handleEdit}
-          disabled={editable}
-        >
-          Take Notes
-        </Button>
 
+      <Footer>
         <Button
           variant="contained"
           onClick={handleSave}
@@ -244,6 +321,6 @@ const NotesPanel = ({ onClose }) => {
       </Snackbar>
     </FloatingNotesBox>
   );
-};
+});
 
 export default NotesPanel;

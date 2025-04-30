@@ -144,7 +144,9 @@ const FloatingAIChat = () => {
   return (
     <FloatingBox elevation={6}>
       <Header>
-        <Typography variant="subtitle1">AI Tutor Eva</Typography>
+        <Typography variant="subtitle1" sx={{ fontSize: "medium" }}>
+          AI Tutor
+        </Typography>
         <HeaderButtons>
           <Tooltip title="Reset Chat">
             <IconButton onClick={handleReset} size="small">
