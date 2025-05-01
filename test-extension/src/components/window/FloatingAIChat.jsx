@@ -93,6 +93,14 @@ const InputField = styled(TextField)({
   maxHeight: "100px",
   overflowY: "auto",
   flexGrow: 1,
+  "& .MuiInputBase-root": {
+    fontSize: "medium", // Input text size
+  },
+  "& input::placeholder, & textarea::placeholder": {
+    fontSize: "medium",
+    color: "gray", // <-- Set placeholder color to gray
+    opacity: 1,
+  },
 });
 
 const FloatingAIChat = () => {
@@ -215,9 +223,11 @@ const FloatingAIChat = () => {
             color: "white",
             "&:hover": { backgroundColor: "#1565c0" },
             borderRadius: "50%",
+            width: "48px",
+            height: "48px",
           }}
         >
-          <SendIcon />
+          <SendIcon sx={{ fontSize: "28px" }} />
         </IconButton>
       </InputSection>
     </FloatingBox>

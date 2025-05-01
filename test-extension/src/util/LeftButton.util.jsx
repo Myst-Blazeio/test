@@ -1,23 +1,13 @@
 import { useState } from "react";
 import axios from "axios";
-import { Snackbar, Alert, Slide, IconButton } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import { baseAPIurl } from "../config";
 
+// Custom hook to manage notes panel state and actions
 export const useNotesPanel = () => {
   const [notes, setNotes] = useState(""); // State for storing notes
-
-  // Snackbar state for displaying feedback messages
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "info",
-  });
-
-  // Function to trigger the snackbar
-  const triggerSnackbar = (message, severity = "info") => {
-    setSnackbar({ open: true, message, severity });
-  };
+  const [lastSavedNote, setLastSavedNote] = useState(""); // Track the last saved note
+  const [isSaved, setIsSaved] = useState(true); // Flag to indicate if the note is saved
+  const [isEnhancing, setIsEnhancing] = useState(false); // Flag to indicate if note enhancement is in progress
 
   // Function to fetch notes from the backend
   const fetchNotesFromBackend = async () => {
@@ -25,16 +15,13 @@ export const useNotesPanel = () => {
       const response = await axios.get(`${baseAPIurl}api/notes/result`);
       if (response.status === 200 && response.data) {
         setNotes(response.data);
-        localStorage.setItem("savedNotes", response.data); // cache locally
-        triggerSnackbar("✅ Enhanced notes fetched successfully.", "success");
+        localStorage.setItem("savedNotes", response.data); // Cache locally
         return response.data;
       } else {
-        triggerSnackbar("⚠️ No enhanced notes returned.", "warning");
         return null;
       }
     } catch (error) {
       console.error("[ERROR] GET /api/notes/result:", error);
-      triggerSnackbar("⚠️ Failed to fetch enhanced notes.", "error");
       return null;
     }
   };
@@ -42,79 +29,101 @@ export const useNotesPanel = () => {
   // Function to enhance notes by sending them to the backend
   const enhanceNote = async (noteText) => {
     if (!noteText.trim()) {
-      triggerSnackbar("⚠️ Cannot enhance an empty note.", "warning");
       return null;
     }
 
     try {
-      triggerSnackbar("✨ Sending note for enhancement...", "info");
       const response = await axios.post(`${baseAPIurl}api/notes/enhance`, {
         notes: noteText,
       });
 
       if (response.status === 200) {
-        triggerSnackbar(
-          "⏳ Enhancement complete. Fetching results...",
-          "success"
-        );
         const enhanced = await fetchNotesFromBackend(); // Fetch the result
         return enhanced;
       } else {
-        triggerSnackbar("❌ Enhancement failed.", "error");
         return null;
       }
     } catch (error) {
       console.error("[ERROR] POST /api/notes/enhance:", error);
-      triggerSnackbar("❌ Error enhancing note.", "error");
       return null;
     }
   };
 
-  // Snackbar component to display feedback messages
-  const SnackbarComponent = () => {
-    const handleClose = () => {
-      setSnackbar({ ...snackbar, open: false });
-    };
+  // Function to save notes to the backend
+  const handleSaveNote = async () => {
+    if (notes.trim() === lastSavedNote.trim()) return;
 
-    return (
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }} // Bottom-left position
-        TransitionComponent={(props) => <Slide {...props} direction="right" />}
-      >
-        <Alert
-          severity={snackbar.severity}
-          onClose={handleClose}
-          sx={{
-            backgroundColor: "#333",
-            color: "#fff",
-            borderRadius: "8px",
-            fontSize: "14px",
-            padding: "10px 20px",
-          }}
-          action={
-            <IconButton
-              size="small"
-              onClick={handleClose}
-              sx={{ color: "#fff" }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          }
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    );
+    try {
+      localStorage.setItem("userNote", notes);
+      setIsSaved(true);
+      setLastSavedNote(notes);
+
+      const response = await axios.post(`${baseAPIurl}api/notes/current`, {
+        notes,
+      });
+
+      if (response.status === 200) {
+      } else {
+        const error = await response.text();
+        console.error(`[ERROR] POST /api/notes/current: ${error}`);
+      }
+    } catch (err) {
+      console.error("[ERROR] POST /api/notes/current:", err);
+    }
+  };
+
+  // Function to reset notes (clear note content)
+  const handleResetNote = async () => {
+    setNotes("");
+    setIsSaved(false);
+
+    try {
+      localStorage.setItem("userNote", "");
+      await axios.post(`${baseAPIurl}api/notes/current`, {
+        notes: "",
+      });
+    } catch (err) {
+      console.error("[ERROR] POST /api/notes/current:", err);
+    }
+  };
+
+  // Function to undo to the last saved note
+  const handleUndoNote = async () => {
+    setNotes(lastSavedNote);
+    setIsSaved(true);
+
+    try {
+      localStorage.setItem("userNote", lastSavedNote);
+      await axios.post(`${baseAPIurl}api/notes/current`, {
+        notes: lastSavedNote,
+      });
+    } catch (err) {
+      console.error("[ERROR] POST /api/notes/current (undo):", err);
+    }
+  };
+
+  // Function to copy notes to clipboard
+  const handleCopyNote = async () => {
+    try {
+      await navigator.clipboard.writeText(notes);
+    } catch (err) {
+      console.error("[ERROR] Copying note to clipboard:", err);
+    }
   };
 
   return {
     notes,
     setNotes,
+    lastSavedNote,
+    setLastSavedNote,
+    isSaved,
+    setIsSaved,
+    isEnhancing,
+    setIsEnhancing,
+    handleSaveNote,
+    handleResetNote,
+    handleUndoNote,
+    handleCopyNote,
     enhanceNote, // Make the enhanceNote function available
-    triggerSnackbar, // Make the snackbar trigger function available
-    SnackbarComponent, // Make the Snackbar component available
   };
 };

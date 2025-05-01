@@ -22,6 +22,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import UndoIcon from "@mui/icons-material/Undo";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import styled from "@emotion/styled";
 import { useNotesPanel } from "../../util/LeftButton.util";
 import { baseAPIurl } from "../../config";
@@ -192,6 +193,15 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(notes);
+      triggerSnackbar("📋 Note copied to clipboard!", "success");
+    } catch (err) {
+      triggerSnackbar("🚫 Failed to copy note.", "error");
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     saveBeforeClose: handleSave,
   }));
@@ -226,11 +236,25 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
               </IconButton>
             </span>
           </Tooltip>
+          <Tooltip title="Copy note to clipboard">
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleCopy}
+                disabled={isNoteEmpty}
+              >
+                <ContentCopyIcon
+                  sx={{ color: "white", opacity: isNoteEmpty ? 0.4 : 1 }}
+                />
+              </IconButton>
+            </span>
+          </Tooltip>
           <IconButton size="small" onClick={onClose}>
             <CloseIcon sx={{ color: "white" }} />
           </IconButton>
         </Box>
       </Header>
+
       <NoteAreaWrapper>
         <NoteField
           fullWidth
@@ -248,6 +272,7 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
           <AutoAwesomeOutlinedIcon color="primary" />
         </EnhanceButton>
       </NoteAreaWrapper>
+
       <Footer>
         <Button
           variant="contained"
@@ -262,6 +287,7 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
           <SaveIcon />
         </Button>
       </Footer>
+
       <Snackbar
         open={triggerSnackbar.open}
         autoHideDuration={5000}

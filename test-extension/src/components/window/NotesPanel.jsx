@@ -1,10 +1,4 @@
-// src/window/NotesPanel.jsx
-import React, {
-  useState,
-  useEffect,
-  useImperativeHandle,
-  forwardRef,
-} from "react";
+import React, { useEffect, forwardRef } from "react";
 import {
   Box,
   Paper,
@@ -12,10 +6,8 @@ import {
   IconButton,
   TextField,
   Button,
-  Snackbar,
-  Alert,
-  Slide,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
@@ -24,8 +16,7 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import UndoIcon from "@mui/icons-material/Undo";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import styled from "@emotion/styled";
-import { useNotesPanel } from "../../util/LeftButton.util";
-import { baseAPIurl } from "../../config";
+import { useNotesPanel } from "../../util/LeftButton.util"; // Updated import path
 
 const FloatingNotesBox = styled(Paper)({
   position: "fixed",
@@ -83,13 +74,21 @@ const EnhanceButton = styled(IconButton)(({ disabled }) => ({
   position: "absolute",
   bottom: 18,
   right: 22,
-  backgroundColor: "#ffffffdd",
+  width: 44,
+  height: 44,
+  backgroundColor: "#ffffff",
+  opacity: 1,
   borderRadius: "50%",
   boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
-  opacity: disabled ? 0.4 : 1,
   pointerEvents: disabled ? "none" : "auto",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
   "&:hover": {
     backgroundColor: "#e3f2fd",
+  },
+  "& .MuiCircularProgress-root": {
+    position: "absolute",
   },
 }));
 
@@ -103,15 +102,27 @@ const Footer = styled(Box)({
 });
 
 const NotesPanel = forwardRef(({ onClose }, ref) => {
-  const { notes, setNotes, enhanceNote, triggerSnackbar } = useNotesPanel();
-  const [isSaved, setIsSaved] = useState(true);
-  const [lastSavedNote, setLastSavedNote] = useState("");
+  const {
+    notes,
+    setNotes,
+    lastSavedNote,
+    setLastSavedNote,
+    isSaved,
+    setIsSaved,
+    isEnhancing,
+    setIsEnhancing,
+    handleSaveNote,
+    handleResetNote,
+    handleUndoNote,
+    handleCopyNote,
+    enhanceNote,
+  } = useNotesPanel(); // Using the updated hook
 
   useEffect(() => {
     const storedNote = localStorage.getItem("userNote") || "";
     setNotes(storedNote);
     setLastSavedNote(storedNote);
-  }, [setNotes]);
+  }, [setNotes, setLastSavedNote]);
 
   useEffect(() => {
     return () => {
@@ -119,67 +130,16 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
     };
   }, [notes]);
 
-  const handleSave = async () => {
-    if (notes.trim() === lastSavedNote.trim()) return;
-
-    try {
-      localStorage.setItem("userNote", notes);
-      setIsSaved(true);
-      setLastSavedNote(notes);
-
-      const response = await fetch(`${baseAPIurl}api/notes/current`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ notes }),
-      });
-
-      if (response.ok) {
-        triggerSnackbar(`✅ Note saved to backend!`, "success");
-      } else {
-        const error = await response.text();
-        triggerSnackbar(`❌ Failed to save note: ${error}`, "error");
-      }
-    } catch (err) {
-      triggerSnackbar("🚫 Error saving note to backend.", "error");
-    }
-  };
-
-  const handleReset = async () => {
-    setNotes("");
-    setIsSaved(false);
-
-    try {
-      localStorage.setItem("userNote", "");
-      await fetch(`${baseAPIurl}api/notes/current`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: "" }),
-      });
-      triggerSnackbar("🧹 Note reset successfully!", "success");
-    } catch (err) {
-      triggerSnackbar("🚫 Error resetting note.", "error");
-    }
-  };
-
-  const handleUndo = () => {
-    setNotes(lastSavedNote);
-    setIsSaved(true);
-    triggerSnackbar("↩️ Note restored to last saved version.", "info");
-  };
-
   const handleChange = (e) => {
     setNotes(e.target.value);
     setIsSaved(e.target.value === lastSavedNote);
   };
 
   const handleEnhanceButtonClick = async () => {
-    if (!notes.trim()) {
-      triggerSnackbar("Cannot enhance empty note.", "warning");
-      return;
-    }
+    if (isEnhancing || !notes.trim()) return;
+
     try {
+      setIsEnhancing(true);
       const enhanced = await enhanceNote(notes);
       if (enhanced) {
         setNotes(enhanced);
@@ -190,21 +150,10 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
       }
     } catch (error) {
       triggerSnackbar("Failed to enhance note.", "error");
+    } finally {
+      setIsEnhancing(false);
     }
   };
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(notes);
-      triggerSnackbar("📋 Note copied to clipboard!", "success");
-    } catch (err) {
-      triggerSnackbar("🚫 Failed to copy note.", "error");
-    }
-  };
-
-  useImperativeHandle(ref, () => ({
-    saveBeforeClose: handleSave,
-  }));
 
   const isNoteEmpty = !notes.trim();
   const canUndo = notes !== lastSavedNote;
@@ -218,7 +167,11 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
         <Box>
           <Tooltip title="Undo to last saved note">
             <span>
-              <IconButton size="small" onClick={handleUndo} disabled={!canUndo}>
+              <IconButton
+                size="small"
+                onClick={handleUndoNote}
+                disabled={!canUndo}
+              >
                 <UndoIcon sx={{ color: "white", opacity: canUndo ? 1 : 0.4 }} />
               </IconButton>
             </span>
@@ -227,7 +180,7 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
             <span>
               <IconButton
                 size="small"
-                onClick={handleReset}
+                onClick={handleResetNote}
                 disabled={isNoteEmpty}
               >
                 <RestartAltIcon
@@ -240,7 +193,7 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
             <span>
               <IconButton
                 size="small"
-                onClick={handleCopy}
+                onClick={handleCopyNote}
                 disabled={isNoteEmpty}
               >
                 <ContentCopyIcon
@@ -267,16 +220,20 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
         />
         <EnhanceButton
           onClick={handleEnhanceButtonClick}
-          disabled={isNoteEmpty}
+          disabled={isNoteEmpty || isEnhancing}
         >
-          <AutoAwesomeOutlinedIcon color="primary" />
+          {isEnhancing ? (
+            <CircularProgress size={24} thickness={4} />
+          ) : (
+            <AutoAwesomeOutlinedIcon color="primary" />
+          )}
         </EnhanceButton>
       </NoteAreaWrapper>
 
       <Footer>
         <Button
           variant="contained"
-          onClick={handleSave}
+          onClick={handleSaveNote}
           sx={{
             backgroundColor: isSaved ? "#43a047" : "#e53935",
             minWidth: "48px",
@@ -287,38 +244,6 @@ const NotesPanel = forwardRef(({ onClose }, ref) => {
           <SaveIcon />
         </Button>
       </Footer>
-
-      <Snackbar
-        open={triggerSnackbar.open}
-        autoHideDuration={5000}
-        onClose={triggerSnackbar.handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        TransitionComponent={(props) => <Slide {...props} direction="right" />}
-      >
-        <Alert
-          severity={triggerSnackbar.severity}
-          onClose={triggerSnackbar.handleClose}
-          action={
-            <IconButton
-              size="medium"
-              onClick={triggerSnackbar.handleClose}
-              sx={{ color: "red" }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          }
-          sx={{
-            border: "1px solid white",
-            borderRadius: "8px",
-            backgroundColor: "black",
-            color: "white",
-            fontSize: "16px",
-            padding: "10px 20px",
-          }}
-        >
-          {triggerSnackbar.message}
-        </Alert>
-      </Snackbar>
     </FloatingNotesBox>
   );
 });
